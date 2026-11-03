@@ -1,0 +1,13 @@
+# ModelSim / Questa generated artifacts
+work/
+*.wlf
+*.qdb
+*.qpg
+*.qtl
+*.mpf
+*.mti
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
