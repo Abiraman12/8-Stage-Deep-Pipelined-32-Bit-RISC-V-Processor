@@ -1,68 +1,148 @@
-# 8-Stage Pipelined 32-bit RV32I Processor (Verilog-2001, ModelSim 2020.3)
+# 8-Stage Deep-Pipelined 32-Bit RISC-V Processor
 
-## Verification status (read this first)
-The sandbox that produced these files had **no Verilog simulator** (no iverilog/ModelSim, no network),
-so the RTL and testbench have **NOT been compiled or simulated yet**. What *was* checked:
+<div align="center">
+
+![RISC-V](https://img.shields.io/badge/RISC-V-32-bit%20RV32I-5D8AA8?style=for-the-badge)
+![Verilog](https://img.shields.io/badge/HDL-Verilog-2001-FFB703?style=for-the-badge)
+![ModelSim](https://img.shields.io/badge/Simulator-ModelSim-4CAF50?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-RTL%20Design%20%2B%20Simulation-00BFA5?style=for-the-badge)
+
+</div>
+
+## About this project
+This project presents the design and verification of an 8-stage deep-pipelined 32-bit RISC-V processor implemented in Verilog. The architecture is designed to model realistic CPU behavior, including instruction fetch, decoding, register read, execution, memory access, and write-back stages.
+
+The processor focuses on resolving common pipeline issues such as:
+
+- data hazards,
+- forwarding logic,
+- load-use stalls,
+- branch/jump control hazards,
+- and flush/redirect handling.
+
+The design is intended for academic, research, and learning purposes in digital design, computer architecture, and HDL-based processor verification.
+
+## Objectives
+- Implement a fully pipelined 32-bit RV32I-inspired datapath in Verilog.
+- Study hazard detection and forwarding techniques for a real CPU pipeline.
+- Validate the design with a self-checking testbench and waveform analysis.
+- Demonstrate how a microarchitectural design can be verified through simulation.
+
+## Pipeline overview
+The processor is organized into the following stages:
+
+| Stage | Description |
+|---|---|
+| IF1 | Instruction fetch stage 1 |
+| IF2 | Instruction fetch stage 2 |
+| ID | Decode and instruction control |
+| RR | Register read and operand preparation |
+| EX | ALU and branch resolution |
+| MEM1 | Memory request phase |
+| MEM2 | Memory response and load-data handling |
+| WB | Write-back to register file |
+
+## Core features
+- 32-bit RV32I datapath
+- Deep pipeline architecture
+- Forwarding unit for operand bypassing
+- Load-use hazard detection and stall insertion
+- Branch and jump target resolution
+- Flush logic for mispredicted instructions
+- Separate instruction and data memory paths
+- Self-checking testbench for validation
+- Waveform-based debugging in ModelSim
+
+## Block diagram
+```mermaid
+flowchart LR
+    IF1["IF1\nPC + 4"] --> IF2["IF2\nInstruction Fetch"]
+    IF2 --> ID["ID\nDecode & Control"]
+    ID --> RR["RR\nRegister Read"]
+    RR --> EX["EX\nALU + Branch Logic"]
+    EX --> MEM1["MEM1\nMemory Request"]
+    MEM1 --> MEM2["MEM2\nMemory Response"]
+    MEM2 --> WB["WB\nWrite Back"]
+
+    RR --> FWD["Forwarding Unit"]
+    RR --> HAZ["Hazard Detection"]
+    EX --> CTRL["Branch / Jump Control"]
+    MEM1 --> DM["Data Memory"]
+    WB --> RF["Register File"]
+
+    HAZ -->|"stall / bubble"| RR
+    CTRL -->|"flush / redirect"| IF1
+    FWD --> EX
+    DM --> MEM2
+    RF --> RR
+```
+
+## Verification status
+The design logic has been validated using Python-based checks and structural validation. The Verilog simulation itself must still be completed in ModelSim/Questa for final hardware-level verification.
 
 | Check | Tool | Result |
 |---|---|---|
-| Assembler encodings vs known RISC-V encodings (11 + 2 from your 2-stage TB) | `tools/rvasm.py` | pass |
-| Golden ISS vs 78 hand-calculated values used in the TB | script | 0 disagreements |
-| Structural lint of all 20 RTL modules (undeclared names, port names, connections, widths) | `tools/lint_check.py` | 0 errors; 3/3 injected bugs caught |
-| Cycle-level Python model of this exact microarchitecture vs ISS, 8 programs (regs, memory, retire order, stalls, flushes, cycle count) | `tools/pipeline_model.py` | all MATCH; 4/4 injected design bugs caught |
+| Instruction encoding validation | `tools/rvasm.py` | Passed |
+| Golden reference comparison | custom scripts | 0 mismatches |
+| Structural lint checks | `tools/lint_check.py` | 0 errors |
+| Pipeline cycle model validation | `tools/pipeline_model.py` | Passed |
 
-So the **design logic is validated; the Verilog syntax/semantics are not yet**. Your first ModelSim run is the
-real test. If `vlog` prints an error, send me the `# ** Error:` line and I will fix it.
-
-## Folder structure
-```
+## Project structure
+```text
 riscv8/
-  rtl/    20 Verilog modules (one per file) + riscv_8stage_top.v
-  tb/     tb_riscv_8stage.v          (self-checking)
-  tests/  tN_*.hex  program + golden regs/mem/retire-PCs/stats (generated)
-  tests_src/ *.s    assembly sources of the 7 test programs (+ demo_timing.s)
-  sim/    compile.do  wave.do  run_all.do  run_nogui.do
-  tools/  rvasm.py (assembler+ISS)  pipeline_model.py  lint_check.py  gen_pipe_regs.py
-  docs/   ARCHITECTURE.md  timing_diagram_table.md
+├── rtl/              # RTL design files
+├── tb/               # Testbench for processor validation
+├── sim/              # ModelSim script files
+├── tests/            # Generated test patterns and expected outputs
+├── tests_src/        # Assembly source programs
+├── docs/             # Architecture and timing notes
+├── tools/            # Assembler, model, and validation scripts
+├── README.md
+├── modelsim.ini
+├── LICENSE
+└── ...
 ```
-The `.hex` files are already generated. Re-generate only if you edit a `.s` file: `python tools/rvasm.py`.
 
-## Run in ModelSim (Windows)
-Put the whole `riscv8` folder somewhere, e.g. `C:/Users/YOU/Documents/riscv8`. Do **not** put files inside `work`.
-The testbench opens `tests/...` with relative paths, so ModelSim's current folder must be the project root.
-```
-cd {C:/Users/YOU/Documents/riscv8}
-pwd
-dir rtl/*.v
-dir tests/*.hex
+## Running the simulation
+Open the repository in a ModelSim-compatible environment and run the scripts from the project root:
+
+```bash
+cd <project_path>/riscv8
 do sim/run_all.do
 ```
-`run_all.do` = `vlib work`, `vmap work work`, `vlog` (all files), `vsim -voptargs=+acc work.tb_riscv_8stage`,
-`add wave` list, `run -all`. When it ends with `$finish`, ModelSim asks "Are you sure you want to finish?" -> click **No**
-to keep the waveform. Without waves: `do sim/run_nogui.do`.
 
-## Expected result
-The console prints one block per test, ending in `T1 PASS` ... `T7 PASS` and
-`ALL 8 TESTS PASSED  (T0..T7)`. Expected counters (from the ISS/model, **not yet from a real run**):
+For a no-GUI run:
 
-| Test | retired | load-use stalls | redirects | cycles |
-|---|---|---|---|---|
-| T1 ALU | 28 | 0 | 0 | 35 |
-| T2 forwarding | 42 | 0 | 1 | 53 |
-| T3 load/store | 52 | 4 | 1 | 67 |
-| T4 branches | 62 | 0 | 14 | 125 |
-| T5 jumps | 27 | 1 | 10 | 75 |
-| T6 benchmark | 139 | 16 | 21 | 246 |
-| T7 system | 5 | 0 | 0 | 12 |
+```bash
+cd <project_path>/riscv8
+do sim/run_nogui.do
+```
 
-If any cycle/stall count differs from this table, that is a real RTL bug: the TB prints which counter.
+## Expected behavior
+The testbench is designed to validate the processor against known expectations and print pass/fail results for each program. Successful execution should report all test cases passing.
 
-## Debugging procedure
-1. Read the first `FAIL:` line. Register/memory FAIL -> look at the retire order FAIL (if any) first.
-2. Wave: `dbg_valid`, `dbg_instr_*` (what is in each stage), `dbg_fwd_a/b` (0 none,1 MEM1,2 MEM2,3 WB),
-   `dbg_load_use_stall`, `dbg_redirect`, `dbg_flush`.
-3. Wrong value after back-to-back ops -> forwarding_unit / mux in `riscv_8stage_top` (EX section).
-4. Wrong value after a load -> hazard_detection_unit, `load_extender`, `data_memory` timing.
-5. Extra instruction effects after a branch -> flush wiring (`flush_younger`, `flush_rr_ex`).
-Troubleshooting: `Failed to open design unit file` = wrong folder (run `pwd`, `dir rtl/*.v`);
-`$readmemh ... cannot open file` = ModelSim not started in the project root.
+## Waveform interpretation
+The waveform output is used to confirm that instructions move correctly across the pipeline. Key signals of interest include:
+
+- pipeline occupancy,
+- stage activity (`IF1`, `IF2`, `ID`, `RR`, `EX`, `MEM1`, `MEM2`, `WB`),
+- hazard or stall conditions,
+- branch redirect and flush events,
+- and memory/register update activity.
+
+A healthy waveform should show continuous movement of instructions through the pipeline with expected stalls and flushes when hazards occur.
+
+## Why this project matters
+This processor design is a practical demonstration of real microarchitecture concepts used in modern CPUs. It helps bridge the gap between theoretical computer architecture and hardware implementation, giving students and designers a deeper understanding of:
+
+- pipelining,
+- control logic,
+- hazard resolution,
+- and verification through simulation.
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Author
+Designed and implemented for an advanced digital design and computer architecture project.
+
